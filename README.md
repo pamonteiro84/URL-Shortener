@@ -75,12 +75,13 @@ curl -X DELETE localhost:8080/EAaArVRs   # 204
 
 ## What's deliberately not here
 
-Listing all URLs, editing an existing one, and auth are all missing on purpose, not because I forgot them:
+Listing all URLs and editing an existing one are both missing on purpose, not because I forgot them:
 
-- **Listing** would mean exposing every URL in the DB to anyone, since there's no concept of "who owns this link" yet.
+- **Listing** would mean exposing every URL in the DB to anyone, since there's no concept of "who owns this link" yet — waiting on auth to land.
 - **Editing** the original URL would break the "short code is a deterministic hash of the URL" invariant that everything else relies on.
-- **Auth** is really the prerequisite for the first two to make sense at all — but it's a big enough topic (users, password hashing, sessions/JWT) that it deserves to be its own thing rather than a quick add-on here.
 
 ## Ideas for later
 
-Auth (see above), a graceful shutdown instead of just blocking forever on `r.Run`, actually dockerizing the Go app itself instead of only Postgres/Redis, some CI to run the test suite on push, and maybe swapping the rate limiter for a sliding window if the fixed-window boundary bursts ever actually become a problem in practice.
+**Auth**: a hybrid of JWT and Redis. A short-lived access token (JWT, ~15 min) for normal requests — stateless, so most requests never need to touch Redis or Postgres just to check identity — plus a long-lived opaque refresh token (~7 days) stored in Redis. A JWT alone can't be revoked before it expires without keeping a list of dead tokens somewhere, which just brings a database back into the picture anyway, so instead the JWT stays short and disposable, and the refresh token is the one piece actually checked against Redis, and the one thing that can be killed on logout. Passwords get hashed with Argon2id (`golang.org/x/crypto/argon2`), the current OWASP recommendation, not bcrypt. Once URLs have owners, the short-code hash changes too: from a hash of just the URL to a hash of `userID + originalURL`, otherwise two different users shortening the same link would land on the same code and only whoever got there first would own it.
+
+A graceful shutdown instead of just blocking forever on `r.Run`, actually dockerizing the Go app itself instead of only Postgres/Redis, some CI to run the test suite on push, and maybe swapping the rate limiter for a sliding window if the fixed-window boundary bursts ever actually become a problem in practice.

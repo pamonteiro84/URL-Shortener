@@ -6,6 +6,8 @@ const (
 	NotFound Kind = iota
 	AlreadyExists
 	Internal
+	Unauthorized
+	Forbidden
 )
 
 type AppError struct {
