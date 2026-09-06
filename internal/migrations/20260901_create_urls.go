@@ -7,7 +7,7 @@ import (
 )
 
 var CreateURLsTable = &gormigrate.Migration{
-      ID: "20261007_create_urls_table",
+      ID: "20260901_create_urls_table",
       Migrate: func(tx *gorm.DB) error {
               return tx.AutoMigrate(&models.URL{})
       },
