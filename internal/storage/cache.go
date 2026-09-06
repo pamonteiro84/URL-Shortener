@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -9,6 +10,11 @@ import (
 
 	"url_shortener/internal/models"
 )
+
+type cachedURLValue struct {
+	OriginalURL string `json:"original_url"`
+	UserID      uint   `json:"user_id"`
+}
 
 type cachedURLRepository struct {
 	inner URLRepository
@@ -28,8 +34,11 @@ func (r *cachedURLRepository) GetByShortURL(shortURL string) (*models.URL, error
 	ctx := context.Background()
 	key := cacheKey(shortURL)
 
-	if originalURL, err := r.redis.Get(ctx, key).Result(); err == nil {
-		return &models.URL{ShortCode: shortURL, OriginalURL: originalURL}, nil
+	if raw, err := r.redis.Get(ctx, key).Result(); err == nil {
+		var cached cachedURLValue
+		if err := json.Unmarshal([]byte(raw), &cached); err == nil {
+			return &models.URL{ShortCode: shortURL, OriginalURL: cached.OriginalURL, UserID: cached.UserID}, nil
+		}
 	}
 
 	u, err := r.inner.GetByShortURL(shortURL)
@@ -37,8 +46,10 @@ func (r *cachedURLRepository) GetByShortURL(shortURL string) (*models.URL, error
 		return nil, err
 	}
 
-	if err := r.redis.Set(ctx, key, u.OriginalURL, r.ttl).Err(); err != nil {
-		log.Printf("cache: failed to set %q: %v", key, err)
+	if raw, err := json.Marshal(cachedURLValue{OriginalURL: u.OriginalURL, UserID: u.UserID}); err == nil {
+		if err := r.redis.Set(ctx, key, raw, r.ttl).Err(); err != nil {
+			log.Printf("cache: failed to set %q: %v", key, err)
+		}
 	}
 
 	return u, nil

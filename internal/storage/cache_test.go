@@ -59,7 +59,7 @@ func newTestCachedRepo(t *testing.T) (URLRepository, *fakeInnerRepo) {
 
 func TestCachedGetByShortURL_MissThenHit(t *testing.T) {
 	repo, inner := newTestCachedRepo(t)
-	inner.urls["abc123"] = &models.URL{ShortCode: "abc123", OriginalURL: "https://example.com"}
+	inner.urls["abc123"] = &models.URL{ShortCode: "abc123", OriginalURL: "https://example.com", UserID: 7}
 
 	got, err := repo.GetByShortURL("abc123")
 	if err != nil {
@@ -67,6 +67,9 @@ func TestCachedGetByShortURL_MissThenHit(t *testing.T) {
 	}
 	if got.OriginalURL != "https://example.com" {
 		t.Errorf("OriginalURL = %q, want %q", got.OriginalURL, "https://example.com")
+	}
+	if got.UserID != 7 {
+		t.Errorf("UserID = %d, want 7", got.UserID)
 	}
 	if inner.getCalls != 1 {
 		t.Fatalf("inner.getCalls after miss = %d, want 1", inner.getCalls)
@@ -78,6 +81,9 @@ func TestCachedGetByShortURL_MissThenHit(t *testing.T) {
 	}
 	if got.OriginalURL != "https://example.com" {
 		t.Errorf("OriginalURL = %q, want %q", got.OriginalURL, "https://example.com")
+	}
+	if got.UserID != 7 {
+		t.Errorf("UserID from cache hit = %d, want 7 (cache must preserve UserID, not just OriginalURL)", got.UserID)
 	}
 	if inner.getCalls != 1 {
 		t.Errorf("inner.getCalls after hit = %d, want 1 (should not touch inner on cache hit)", inner.getCalls)

@@ -26,6 +26,10 @@ func statusFor(err error) (int, string) {
 			return http.StatusNotFound, "not found"
 		case apperrors.AlreadyExists:
 			return http.StatusConflict, "already exists"
+		case apperrors.Unauthorized:
+			return http.StatusUnauthorized, "unauthorized"
+		case apperrors.Forbidden:
+			return http.StatusForbidden, "forbidden"
 		default:
 			return http.StatusInternalServerError, "internal error"
 		}
@@ -44,7 +48,8 @@ func (h *Handler) Shorten(c *gin.Context) {
 		return
 	}
 
-	shortCode, err := h.service.ShortenURL(req.URL)
+	userID := c.MustGet("userID").(uint)
+	shortCode, err := h.service.ShortenURL(req.URL, userID)
 
 	var appErr *apperrors.AppError
 	if errors.As(err, &appErr) && appErr.Kind == apperrors.AlreadyExists {
@@ -75,8 +80,9 @@ func (h *Handler) Redirect(c *gin.Context) {
 
 func (h *Handler) Delete(c *gin.Context) {
 	code := c.Param("code")
+	userID := c.MustGet("userID").(uint)
 
-	if err := h.service.DeleteURL(code); err != nil {
+	if err := h.service.DeleteURL(code, userID); err != nil {
 		status, msg := statusFor(err)
 		c.JSON(status, gin.H{"error": msg})
 		return

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -43,8 +44,18 @@ func main() {
 	svc := service.NewService(cachedRepo)
 	h := handlers.NewHandler(svc)
 
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
+	accessTTL := 15 * time.Minute
+	refreshTTL := 7 * 24 * time.Hour
+
+	userRepo := storage.NewGormUserRepository(db)
+	authSvc := service.NewAuthService(userRepo, redisClient, jwtSecret, accessTTL, refreshTTL)
+	authHandler := handlers.NewAuthHandler(authSvc, refreshTTL)
+
+	requireAuth := middleware.RequireAuth(jwtSecret)
+
 	r := gin.Default()
 	r.Use(middleware.RateLimit(redisClient, 10, time.Minute))
-	router.Setup(r, h)
+	router.Setup(r, h, authHandler, requireAuth)
 	r.Run(":8080")
 }

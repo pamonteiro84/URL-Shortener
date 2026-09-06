@@ -15,6 +15,7 @@ import (
 
 type fakeUserRepository struct {
 	users   map[string]*models.User
+	nextID  uint
 	saveErr error
 	getErr  error
 }
@@ -27,6 +28,8 @@ func (f *fakeUserRepository) Save(u *models.User) error {
 	if f.saveErr != nil {
 		return f.saveErr
 	}
+	f.nextID++
+	u.ID = f.nextID
 	f.users[u.Email] = u
 	return nil
 }
